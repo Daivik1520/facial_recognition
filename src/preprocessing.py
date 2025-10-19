@@ -7,6 +7,26 @@ import numpy as np
 from typing import Optional
 
 
+_PIPELINE_PRESETS = {
+    "fast": {
+        "upscale_factor": 1.5,
+        "enable_clahe": False,
+        "enable_denoise": False,
+    },
+    "balanced": {
+        "upscale_factor": 2.0,
+        "enable_clahe": True,
+        "enable_denoise": False,
+    },
+    "quality": {
+        "upscale_factor": 2.0,
+        "enable_clahe": True,
+        "enable_denoise": True,
+        "denoise_strength": 5,
+    },
+}
+
+
 def preprocess_for_long_range(
     image: np.ndarray,
     upscale_factor: float = 2.0,
@@ -29,43 +49,22 @@ def preprocess_for_long_range(
     """
     if image is None or image.size == 0:
         return image
-    
+
+    processed = image
+
     # Step 1: Upscale using bicubic interpolation
     if upscale_factor != 1.0:
-        new_width = int(image.shape[1] * upscale_factor)
-        new_height = int(image.shape[0] * upscale_factor)
-        image = cv2.resize(
-            image, 
-            (new_width, new_height), 
-            interpolation=cv2.INTER_CUBIC
-        )
-    
+        processed = _upscale_image(processed, upscale_factor)
+
     # Step 2: CLAHE contrast enhancement
     if enable_clahe:
-        # Convert to LAB color space for better contrast enhancement
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        
-        # Apply CLAHE to L channel
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        l_channel = clahe.apply(l_channel)
-        
-        # Merge back
-        lab = cv2.merge([l_channel, a_channel, b_channel])
-        image = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-    
+        processed = _apply_clahe(processed)
+
     # Step 3: Denoise
     if enable_denoise:
-        image = cv2.fastNlMeansDenoisingColored(
-            image,
-            None,
-            h=denoise_strength,
-            hColor=denoise_strength,
-            templateWindowSize=7,
-            searchWindowSize=21
-        )
-    
-    return image
+        processed = _denoise_image(processed, denoise_strength)
+
+    return processed
 
 
 def adaptive_sharpen(image: np.ndarray, strength: float = 1.0) -> np.ndarray:
@@ -137,37 +136,56 @@ def preprocess_pipeline(
     Returns:
         Fully preprocessed image
     """
+    if preset not in _PIPELINE_PRESETS:
+        raise ValueError(f"Unknown preset: {preset}. Use 'fast', 'balanced', or 'quality'")
+
+    params = _PIPELINE_PRESETS[preset].copy()
+    enhanced = preprocess_for_long_range(image, **params)
+
     if preset == "fast":
         # Just upscale
-        return preprocess_for_long_range(
-            image,
-            upscale_factor=1.5,
-            enable_clahe=False,
-            enable_denoise=False
-        )
-    
-    elif preset == "balanced":
+        return enhanced
+
+    if preset == "balanced":
         # Upscale + CLAHE
-        enhanced = preprocess_for_long_range(
-            image,
-            upscale_factor=2.0,
-            enable_clahe=True,
-            enable_denoise=False
-        )
         return enhanced
-    
-    elif preset == "quality":
-        # Full pipeline
-        enhanced = preprocess_for_long_range(
-            image,
-            upscale_factor=2.0,
-            enable_clahe=True,
-            enable_denoise=True,
-            denoise_strength=5
-        )
-        # Add sharpening
-        enhanced = adaptive_sharpen(enhanced, strength=0.8)
-        return enhanced
-    
-    else:
-        raise ValueError(f"Unknown preset: {preset}. Use 'fast', 'balanced', or 'quality'")
+
+    # Full pipeline
+    # Add sharpening
+    enhanced = adaptive_sharpen(enhanced, strength=0.8)
+    return enhanced
+
+
+def _upscale_image(image: np.ndarray, upscale_factor: float) -> np.ndarray:
+    new_width = int(image.shape[1] * upscale_factor)
+    new_height = int(image.shape[0] * upscale_factor)
+    return cv2.resize(
+        image,
+        (new_width, new_height),
+        interpolation=cv2.INTER_CUBIC
+    )
+
+
+def _apply_clahe(image: np.ndarray) -> np.ndarray:
+    # Convert to LAB color space for better contrast enhancement
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
+
+    # Apply CLAHE to L channel
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    l_channel = clahe.apply(l_channel)
+
+    # Merge back
+    lab = cv2.merge([l_channel, a_channel, b_channel])
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
+
+def _denoise_image(image: np.ndarray, denoise_strength: int) -> np.ndarray:
+    return cv2.fastNlMeansDenoisingColored(
+        image,
+        None,
+        h=denoise_strength,
+        hColor=denoise_strength,
+        templateWindowSize=7,
+        searchWindowSize=21
+    )
