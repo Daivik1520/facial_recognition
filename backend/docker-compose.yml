@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  face-recognition:
+    build: .
+    container_name: face-recognition-system
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - /dev/video0:/dev/video0  # Webcam access
+    devices:
+      - /dev/video0:/dev/video0
+    environment:
+      - ENV=production
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add database for enterprise features
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: face-recognition-db
+  #   environment:
+  #     POSTGRES_DB: surveillance_db
+  #     POSTGRES_USER: surveillance
+  #     POSTGRES_PASSWORD: changeme_secure_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   restart: unless-stopped
+
+  # Optional: Add Redis for caching
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: face-recognition-cache
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:

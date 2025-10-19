@@ -1,0 +1,141 @@
+{
+  "report_generated": "2025-10-05T14:53:35.252879",
+  "period_days": 30,
+  "daily_stats": {
+    "daily_attendance": {
+      "2025-10-04": {
+        "Name": 4,
+        "Confidence": 0.632
+      },
+      "2025-10-05": {
+        "Name": 1,
+        "Confidence": 0.668
+      }
+    },
+    "total_days": 2,
+    "avg_daily_attendance": 2.5,
+    "max_daily_attendance": "4",
+    "avg_confidence": 0.65
+  },
+  "person_stats": {
+    "dimpu": {
+      "Date_count": 1,
+      "Date_nunique": 1,
+      "Confidence_mean": 0.663,
+      "Confidence_min": 0.663,
+      "Confidence_max": 0.663,
+      "DateTime_min": "2025-10-04 01:26:46",
+      "DateTime_max": "2025-10-04 01:26:46",
+      "attendance_rate": 100.0
+    },
+    "laxman": {
+      "Date_count": 1,
+      "Date_nunique": 1,
+      "Confidence_mean": 0.552,
+      "Confidence_min": 0.552,
+      "Confidence_max": 0.552,
+      "DateTime_min": "2025-10-04 16:24:57",
+      "DateTime_max": "2025-10-04 16:24:57",
+      "attendance_rate": 100.0
+    },
+    "manav": {
+      "Date_count": 1,
+      "Date_nunique": 1,
+      "Confidence_mean": 0.77,
+      "Confidence_min": 0.77,
+      "Confidence_max": 0.77,
+      "DateTime_min": "2025-10-04 01:28:41",
+      "DateTime_max": "2025-10-04 01:28:41",
+      "attendance_rate": 100.0
+    },
+    "preetham": {
+      "Date_count": 2,
+      "Date_nunique": 2,
+      "Confidence_mean": 0.606,
+      "Confidence_min": 0.544,
+      "Confidence_max": 0.668,
+      "DateTime_min": "2025-10-04 01:22:52",
+      "DateTime_max": "2025-10-05 14:53:21",
+      "attendance_rate": 200.0
+    }
+  },
+  "time_patterns": {
+    "hourly_distribution": {
+      "1": 3,
+      "14": 1,
+      "16": 1
+    },
+    "daily_distribution": {
+      "Saturday": 4,
+      "Sunday": 1
+    },
+    "peak_hour": "1",
+    "peak_day": "Saturday",
+    "weekly_trends": {
+      "40": 4
+    }
+  },
+  "confidence_analysis": {
+    "overall_stats": {
+      "count": 5.0,
+      "mean": 0.6394,
+      "std": 0.09376993121464897,
+      "min": 0.544,
+      "25%": 0.552,
+      "50%": 0.663,
+      "75%": 0.668,
+      "max": 0.77
+    },
+    "by_person": {
+      "dimpu": {
+        "mean": 0.663,
+        "std": NaN,
+        "count": 1
+      },
+      "laxman": {
+        "mean": 0.552,
+        "std": NaN,
+        "count": 1
+      },
+      "manav": {
+        "mean": 0.77,
+        "std": NaN,
+        "count": 1
+      },
+      "preetham": {
+        "mean": 0.606,
+        "std": 0.088,
+        "count": 2
+      }
+    },
+    "low_confidence_alerts": {
+      "count": 0,
+      "threshold": 0.5,
+      "recent_issues": []
+    },
+    "confidence_distribution": {
+      "excellent": 0.0,
+      "good": 60.0,
+      "fair": 40.0,
+      "poor": 0.0
+    }
+  },
+  "system_health": {
+    "database_health": {
+      "enrolled_people": 4,
+      "total_embeddings": 60,
+      "avg_embeddings_per_person": 15.0,
+      "attendance_records": 5
+    },
+    "recent_activity": {
+      "last_24h_recognitions": 2,
+      "unique_people_24h": 2,
+      "avg_confidence_24h": 0.6100000000000001
+    },
+    "data_quality": {
+      "missing_confidence": "0",
+      "invalid_dates": 0,
+      "duplicate_records": "0"
+    }
+  }
+}
