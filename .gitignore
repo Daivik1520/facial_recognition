@@ -1,3 +1,33 @@
+# AI/ML Model files
+*.onnx
+*.pkl
+*.bin
+*.h5
+*.pth
+*.pt
+*.zip
+*.tar.gz
+*.tar
+*.model
+*.weights
+
+# Model directories
+data/models/
+models/
+checkpoints/
+weights/
+
+# Data directories (keep structure but exclude large files)
+data/raw/
+data/processed/*.json
+data/processed/*.csv
+data/processed/*.pkl
+data/processed/*.bin
+
+# Logs
+logs/
+*.log
+
 # Python
 __pycache__/
 *.py[cod]
@@ -20,11 +50,11 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environments
-.venv/
+# Virtual environments
 venv/
-ENV/
 env/
+ENV/
+.venv/
 
 # IDE
 .vscode/
@@ -33,31 +63,25 @@ env/
 *.swo
 *~
 
-# Data & Models (keep essential data)
-data/raw/*
-!data/raw/.gitkeep
-!data/processed/
-data/processed/*.jpg
-data/processed/*.png
-data/processed/*.jpeg
-# Keep attendance and embeddings
-!data/processed/attendance.csv
-!data/processed/face_embeddings.json
-
-# Environment
-.env
-.env.local
-
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Testing & Coverage
-.pytest_cache/
-.coverage
-htmlcov/
-.ruff_cache/
+# Jupyter
+.ipynb_checkpoints/
 
-# Cache
-*.pyc
-*/__pycache__/
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
