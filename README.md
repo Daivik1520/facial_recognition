@@ -137,3 +137,4 @@ PYTHONPATH=. poetry run pytest src/tests/ -v
 ## 📄 License
 
 MIT License
+# face_recognition
