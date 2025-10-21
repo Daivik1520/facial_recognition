@@ -9,6 +9,7 @@ import { useAppStore } from '@/store'
 import { endpoints } from '@/lib/api'
 import { formatDate, formatTime, formatConfidence } from '@/lib/utils'
 import { Search, Download, RefreshCw } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 export function AttendanceTable() {
   const { 
@@ -19,6 +20,7 @@ export function AttendanceTable() {
   } = useAppStore()
   
   const [isLoading, setIsLoading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
     fetchAttendanceRecords()
@@ -27,7 +29,9 @@ export function AttendanceTable() {
   const fetchAttendanceRecords = async () => {
     try {
       setIsLoading(true)
+      console.log('Fetching attendance records...')
       const response = await endpoints.attendanceRecords()
+      console.log('Attendance records response:', response.data)
       setAttendanceRecords(response.data.records || [])
     } catch (error) {
       console.error('Failed to fetch attendance records:', error)
@@ -59,6 +63,11 @@ export function AttendanceTable() {
     const aValue = a[attendanceFilters.sortBy as keyof typeof a]
     const bValue = b[attendanceFilters.sortBy as keyof typeof b]
     
+    // Handle null/undefined values
+    if (aValue == null && bValue == null) return 0
+    if (aValue == null) return 1
+    if (bValue == null) return -1
+    
     if (attendanceFilters.sortOrder === 'asc') {
       return aValue > bValue ? 1 : -1
     } else {
@@ -89,6 +98,67 @@ export function AttendanceTable() {
         return `${baseClasses} bg-red-100 text-red-800`
       default:
         return `${baseClasses} bg-gray-100 text-gray-800`
+    }
+  }
+
+  const exportToExcel = async () => {
+    console.log('Export button clicked. Records count:', sortedRecords.length)
+    console.log('All records:', sortedRecords)
+    
+    if (sortedRecords.length === 0) {
+      alert('No data to export. Please ensure there are attendance records.')
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      
+      // Prepare data for Excel export
+      const exportData = sortedRecords.map((record, index) => ({
+        'S.No': index + 1,
+        'Date': record.date,
+        'Time': record.time,
+        'Name': record.name,
+        'Confidence (%)': record.confidence ? parseFloat(record.confidence.toString()) * 100 : 0,
+        'Status': record.status
+      }))
+      
+      console.log('Export data prepared:', exportData)
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(exportData)
+
+      // Set column widths
+      const colWidths = [
+        { wch: 8 },   // S.No
+        { wch: 12 },  // Date
+        { wch: 10 },  // Time
+        { wch: 20 },  // Name
+        { wch: 15 },  // Confidence
+        { wch: 12 }   // Status
+      ]
+      ws['!cols'] = colWidths
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance Records')
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0]
+      const filename = `attendance_records_${currentDate}.xlsx`
+
+      // Save the file
+      XLSX.writeFile(wb, filename)
+
+      console.log('Excel file exported successfully:', filename)
+      
+      // Show success message
+      alert(`Successfully exported ${sortedRecords.length} records to ${filename}`)
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      alert('Failed to export data to Excel. Please try again.')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -166,9 +236,13 @@ export function AttendanceTable() {
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Button variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
+                <Button 
+                  variant="outline" 
+                  onClick={exportToExcel}
+                  disabled={sortedRecords.length === 0 || isExporting}
+                >
+                  <Download className={`h-4 w-4 mr-2 ${isExporting ? 'animate-pulse' : ''}`} />
+                  {isExporting ? 'Exporting...' : 'Export Excel'}
                 </Button>
               </div>
             </div>
