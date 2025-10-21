@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MetricsCard } from './metrics-card'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -9,6 +10,7 @@ import { endpoints } from '@/lib/api'
 import { Users, UserCheck, Activity, Clock, TrendingUp, Shield, Zap, BarChart3 } from 'lucide-react'
 
 export function Dashboard() {
+  const router = useRouter()
   const { 
     systemStatus, 
     attendanceStats, 
@@ -22,17 +24,24 @@ export function Dashboard() {
     const fetchData = async () => {
       try {
         setLoading(true)
+        console.log('Dashboard: Fetching data...')
         
         // Fetch system status
+        console.log('Dashboard: Fetching status...')
         const statusResponse = await endpoints.status()
+        console.log('Dashboard: Status response:', statusResponse.data)
         setSystemStatus(statusResponse.data)
         
         // Fetch attendance stats
+        console.log('Dashboard: Fetching attendance...')
         const attendanceResponse = await endpoints.attendance()
+        console.log('Dashboard: Attendance response:', attendanceResponse.data)
         setAttendanceStats(attendanceResponse.data)
         
+        console.log('Dashboard: Data fetch completed successfully')
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error)
+        console.error('Dashboard: Failed to fetch data:', error)
+        console.error('Dashboard: Error details:', error)
       } finally {
         setLoading(false)
       }
@@ -48,6 +57,26 @@ export function Dashboard() {
   const attendanceRate = attendanceStats?.total_attendance_records && systemStatus?.enrolled_count 
     ? Math.round((attendanceStats.today_attendance / systemStatus.enrolled_count) * 100)
     : 0
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'enroll':
+        router.push('/live')
+        break
+      case 'live':
+        router.push('/live')
+        break
+      case 'analytics':
+        router.push('/analytics')
+        break
+      case 'export':
+        // For now, just show an alert - you can implement actual export later
+        alert('Export functionality will be implemented soon!')
+        break
+      default:
+        break
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
@@ -278,19 +307,31 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
-              <button className="p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              <button 
+                onClick={() => handleQuickAction('enroll')}
+                className="p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 cursor-pointer"
+              >
                 <Users className="h-6 w-6 mx-auto mb-2" />
                 <div className="text-sm font-medium">Enroll New Person</div>
               </button>
-              <button className="p-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              <button 
+                onClick={() => handleQuickAction('live')}
+                className="p-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 cursor-pointer"
+              >
                 <Activity className="h-6 w-6 mx-auto mb-2" />
                 <div className="text-sm font-medium">View Live Feed</div>
               </button>
-              <button className="p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              <button 
+                onClick={() => handleQuickAction('analytics')}
+                className="p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 cursor-pointer"
+              >
                 <BarChart3 className="h-6 w-6 mx-auto mb-2" />
                 <div className="text-sm font-medium">Analytics Report</div>
               </button>
-              <button className="p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              <button 
+                onClick={() => handleQuickAction('export')}
+                className="p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl hover:from-orange-600 hover:to-red-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 cursor-pointer"
+              >
                 <Clock className="h-6 w-6 mx-auto mb-2" />
                 <div className="text-sm font-medium">Export Data</div>
               </button>

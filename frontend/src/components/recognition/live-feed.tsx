@@ -3,19 +3,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '@/store'
 import { endpoints } from '@/lib/api'
-import { Play, Square, Camera, Upload } from 'lucide-react'
+import { Play, Square, Camera, Users } from 'lucide-react'
+import { GuidedEnrollment } from '@/components/enrollment/guided-enrollment'
+import { QuickEnrollment } from '@/components/enrollment/quick-enrollment'
 
 export function LiveFeed() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [enrollName, setEnrollName] = useState('')
   const [isRecognizing, setIsRecognizing] = useState(false)
-  const [isEnrolling, setIsEnrolling] = useState(false)
-  const [recognitionResults, setRecognitionResults] = useState<any[]>([])
+  const [recognitionResults, setRecognitionResults] = useState<unknown[]>([])
+  const [errors, setErrors] = useState<string[]>([])
+  const [showGuidedEnrollment, setShowGuidedEnrollment] = useState(false)
+  const [showQuickEnrollment, setShowQuickEnrollment] = useState(false)
   
   const { webcam, setWebcamState } = useAppStore()
 
@@ -48,12 +50,12 @@ export function LiveFeed() {
         })
         console.log('Camera started successfully')
       }
-    } catch (error) {
-      console.error('Error accessing webcam:', error)
-      setWebcamState({ 
-        error: 'Camera access denied or not available' 
-      })
-    }
+      } catch (error) {
+        console.error('Error accessing webcam:', error)
+        const errorMsg = 'Camera access denied or not available'
+        setWebcamState({ error: errorMsg })
+        setErrors(prev => [...prev, errorMsg])
+      }
   }
 
   const stopWebcam = () => {
@@ -145,6 +147,8 @@ export function LiveFeed() {
         }
       } catch (error) {
         console.error('Recognition error:', error)
+        const errorMsg = `Recognition failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        setErrors(prev => [...prev, errorMsg])
       }
       
       // Continue loop only if still recognizing
@@ -162,27 +166,6 @@ export function LiveFeed() {
     setWebcamState({ isRecognizing: false })
   }
 
-  const enrollFromWebcam = async () => {
-    if (!enrollName.trim() || !webcam.isActive) return
-    
-    setIsEnrolling(true)
-    try {
-      const blob = await captureFrame()
-      const formData = new FormData()
-      formData.append('name', enrollName)
-      formData.append('files', blob, 'webcam.jpg')
-      formData.append('use_augmentation', 'true')
-      formData.append('augmentation_preset', 'balanced')
-      
-      const response = await endpoints.enroll(formData)
-      console.log('Enrollment successful:', response.data)
-      setEnrollName('')
-    } catch (error) {
-      console.error('Enrollment error:', error)
-    } finally {
-      setIsEnrolling(false)
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -223,6 +206,27 @@ export function LiveFeed() {
                     <div className="text-center">
                       <Camera className="h-12 w-12 mx-auto mb-2" />
                       <p>Camera not active</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Error Banner */}
+                {errors.length > 0 && (
+                  <div className="absolute top-0 left-0 right-0 bg-red-500 text-white p-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span>⚠️ {errors.length} Issues</span>
+                      <button 
+                        onClick={() => setErrors([])}
+                        className="text-white hover:text-red-200"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="mt-1 text-xs">
+                      {errors.slice(0, 2).map((error, index) => (
+                        <div key={index} className="truncate">{error}</div>
+                      ))}
+                      {errors.length > 2 && <div>...and {errors.length - 2} more</div>}
                     </div>
                   </div>
                 )}
@@ -289,23 +293,29 @@ export function LiveFeed() {
             </div>
 
             {/* Enrollment Controls */}
-            <div className="space-y-2">
-              <Label htmlFor="enroll-name">Enrollment</Label>
-              <Input
-                id="enroll-name"
-                placeholder="Enter name to enroll"
-                value={enrollName}
-                onChange={(e) => setEnrollName(e.target.value)}
-                disabled={!webcam.isActive}
-              />
-              <Button 
-                onClick={enrollFromWebcam}
-                disabled={!webcam.isActive || !enrollName.trim() || isEnrolling}
-                className="w-full hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                {isEnrolling ? 'Enrolling...' : 'Enroll from Camera'}
-              </Button>
+            <div className="space-y-4">
+              <Label>Enrollment</Label>
+              
+              <div className="grid gap-2">
+                <Button 
+                  onClick={() => setShowQuickEnrollment(true)}
+                  disabled={!webcam.isActive}
+                  variant="outline"
+                  className="w-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Quick Enroll (1 Photo)
+                </Button>
+                
+                <Button 
+                  onClick={() => setShowGuidedEnrollment(true)}
+                  disabled={!webcam.isActive}
+                  className="w-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Guided Enroll (15 Photos - Best Accuracy)
+                </Button>
+              </div>
             </div>
 
             {/* Results */}
@@ -313,7 +323,7 @@ export function LiveFeed() {
               <div className="space-y-2">
                 <Label>Recognition Results</Label>
                 <div className="space-y-1">
-                  {recognitionResults.map((face, index) => (
+                  {recognitionResults.map((face: any, index) => (
                     <div key={index} className="flex justify-between items-center p-2 bg-muted rounded">
                       <span className="text-sm">
                         {face.matched ? face.name : 'Unknown'}
@@ -335,6 +345,27 @@ export function LiveFeed() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Enrollment Modals */}
+      <GuidedEnrollment
+        isOpen={showGuidedEnrollment}
+        onClose={() => setShowGuidedEnrollment(false)}
+        onComplete={(result) => {
+          console.log('Guided enrollment completed:', result)
+          setShowGuidedEnrollment(false)
+        }}
+      />
+      
+      <QuickEnrollment
+        isOpen={showQuickEnrollment}
+        onClose={() => setShowQuickEnrollment(false)}
+        onComplete={(result) => {
+          console.log('Quick enrollment completed:', result)
+          setShowQuickEnrollment(false)
+        }}
+        videoRef={videoRef}
+        canvasRef={canvasRef}
+      />
     </div>
   )
 }
