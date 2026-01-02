@@ -27,6 +27,7 @@ def get_status(face_system: FaceRecognitionSystem = Depends(get_face_system)) ->
     return {
         "enrolled_count": face_system.get_enrolled_count(),
         "enrolled_names": face_system.get_enrolled_names(),
+        "enrolled_users": face_system.get_all_users_with_metadata(),
         "model": "InsightFace ArcFace",
         "attendance": attendance_stats,
     }
@@ -83,3 +84,36 @@ def get_attendance_records(face_system: FaceRecognitionSystem = Depends(get_face
                 )
 
     return {"records": records}
+
+
+@router.get("/attendance/absentees")
+def get_absentees(
+    date: str = None,
+    student_class: str = None,
+    section: str = None,
+    house: str = None,
+    face_system: FaceRecognitionSystem = Depends(get_face_system),
+) -> dict[str, object]:
+    """
+    Get list of absentees for a specific date with optional filters.
+    
+    Args:
+        date: Date in YYYY-MM-DD format (defaults to today)
+        student_class: Filter by class
+        section: Filter by section  
+        house: Filter by house
+    """
+    return face_system.get_absentees_for_date(
+        target_date=date,
+        student_class=student_class,
+        section=section,
+        house=house
+    )
+
+
+@router.get("/attendance/filters")
+def get_available_filters(
+    face_system: FaceRecognitionSystem = Depends(get_face_system),
+) -> dict[str, object]:
+    """Get available filter options for class, section, and house."""
+    return face_system.get_available_filters()

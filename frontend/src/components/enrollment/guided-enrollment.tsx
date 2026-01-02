@@ -35,13 +35,16 @@ const POSE_INSTRUCTIONS = [
 
 export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollmentProps) {
   const [name, setName] = useState('')
+  const [studentClass, setStudentClass] = useState('')
+  const [section, setSection] = useState('')
+  const [house, setHouse] = useState('')
   const [currentPose, setCurrentPose] = useState(0)
   const [isCapturing, setIsCapturing] = useState(false)
   const [capturedPhotos, setCapturedPhotos] = useState<Blob[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(0)
-  
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -57,14 +60,14 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: 640, 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: 640,
           height: 480,
           facingMode: 'user'
-        } 
+        }
       })
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         streamRef.current = stream
@@ -87,6 +90,9 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
 
   const resetEnrollment = () => {
     setName('')
+    setStudentClass('')
+    setSection('')
+    setHouse('')
     setCurrentPose(0)
     setCapturedPhotos([])
     setError(null)
@@ -149,7 +155,12 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
       formData.append('name', name)
       formData.append('use_augmentation', 'true')
       formData.append('augmentation_preset', 'aggressive') // Use aggressive for guided enrollment
-      
+
+      // Add metadata fields
+      if (studentClass) formData.append('student_class', studentClass)
+      if (section) formData.append('section', section)
+      if (house) formData.append('house', house)
+
       // Add all captured photos
       capturedPhotos.forEach((photo, index) => {
         formData.append('files', photo, `pose_${index + 1}.jpg`)
@@ -159,9 +170,10 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
       console.log('Guided enrollment successful:', response.data)
       onComplete(response.data)
       onClose()
-    } catch (error) {
-      console.error('Enrollment error:', error)
-      setError('Failed to enroll person. Please try again.')
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      const message = typeof detail === 'string' ? detail : (detail?.error || 'Failed to enroll person. Please try again.')
+      setError(message)
     } finally {
       setIsProcessing(false)
     }
@@ -190,7 +202,7 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
             </Button>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Name Input */}
           <div className="space-y-2">
@@ -202,6 +214,40 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
               onChange={(e) => setName(e.target.value)}
               disabled={isProcessing}
             />
+          </div>
+
+          {/* Student Details */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="enroll-class" className="text-sm">Class</Label>
+              <Input
+                id="enroll-class"
+                placeholder="e.g. 10"
+                value={studentClass}
+                onChange={(e) => setStudentClass(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="enroll-section" className="text-sm">Section</Label>
+              <Input
+                id="enroll-section"
+                placeholder="e.g. A"
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="enroll-house" className="text-sm">House</Label>
+              <Input
+                id="enroll-house"
+                placeholder="e.g. Red"
+                value={house}
+                onChange={(e) => setHouse(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
           </div>
 
           {/* Progress */}
@@ -228,7 +274,7 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
                   ref={canvasRef}
                   className="hidden"
                 />
-                
+
                 {/* Countdown Overlay */}
                 {countdown > 0 && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -237,7 +283,7 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
                     </div>
                   </div>
                 )}
-                
+
                 {/* Capturing Overlay */}
                 {isCapturing && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -267,7 +313,7 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
                   </div>
 
                   <div className="space-y-2">
-                    <Button 
+                    <Button
                       onClick={startCountdown}
                       disabled={!name.trim() || isCapturing || countdown > 0}
                       className="w-full"
@@ -290,7 +336,7 @@ export function GuidedEnrollment({ isOpen, onClose, onComplete }: GuidedEnrollme
                   </div>
 
                   <div className="space-y-2">
-                    <Button 
+                    <Button
                       onClick={processEnrollment}
                       disabled={!name.trim() || isProcessing}
                       className="w-full"

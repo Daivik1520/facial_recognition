@@ -15,18 +15,24 @@ from src.augmentation import FaceAugmentation, AugmentationConfig
 
 class FaceRecognitionSystem:
     def __init__(self, enable_augmentation: bool = True, augmentation_preset: str = "balanced"):
-        # Initialize InsightFace with high-quality settings
+        from src.core.config import settings
+        os.environ.setdefault('INSIGHTFACE_HOME', str(Path("data/models/models")))
         self.app = FaceAnalysis(
             providers=['CPUExecutionProvider'],
             allowed_modules=['detection', 'recognition']
         )
-        # Higher detection size for better accuracy
-        self.app.prepare(ctx_id=0, det_size=(640, 640), det_thresh=0.6)
+        det_size = settings.det_size if hasattr(settings, 'det_size') else (640, 640)
+        det_thresh = settings.det_thresh if hasattr(settings, 'det_thresh') else 0.45
+        self.app.prepare(ctx_id=0, det_size=det_size, det_thresh=det_thresh)
         
         # Storage for face embeddings with quality scores
         self.embeddings_db: Dict[str, List[Dict]] = {}  # Store embedding + quality
         self.embeddings_file = Path("data/processed/face_embeddings.json")
         self.embeddings_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # User metadata storage (class, section, house)
+        self.user_metadata: Dict[str, Dict] = {}  # Store user info
+        self.user_metadata_file = Path("data/processed/user_metadata.json")
         
         # Attendance tracking
         self.attendance_file = Path("data/processed/attendance.csv")
@@ -35,8 +41,8 @@ class FaceRecognitionSystem:
         self._load_today_attendance()
         
         # Enhanced matching parameters
-        self.min_embedding_quality = 0.2  # Minimum face quality for enrollment (lowered)
-        self.max_embeddings_per_person = 20  # Store more embeddings for better accuracy
+        self.min_embedding_quality = 0.15
+        self.max_embeddings_per_person = 10  # Reduced for memory optimization
         
         # Augmentation system
         self.enable_augmentation = enable_augmentation
@@ -46,8 +52,9 @@ class FaceRecognitionSystem:
             output_dir="data/augmented"
         )
         
-        # Load existing embeddings
+        # Load existing embeddings and metadata
         self.load_embeddings()
+        self.load_user_metadata()
     
     def detect_and_extract(self, image: np.ndarray) -> List[Dict]:
         """
@@ -129,9 +136,23 @@ class FaceRecognitionSystem:
         quality = (size_score * 0.3 + det_score * 0.3 + pose_score * 0.2 + sharpness_score * 0.2)
         return float(quality)
     
-    def enroll_person(self, name: str, image: np.ndarray) -> bool:
+    def enroll_person(
+        self, 
+        name: str, 
+        image: np.ndarray,
+        student_class: Optional[str] = None,
+        section: Optional[str] = None,
+        house: Optional[str] = None
+    ) -> bool:
         """
         Enroll a person by extracting their face embedding with quality filtering
+        
+        Args:
+            name: Person's name
+            image: Face image
+            student_class: Optional class/grade (e.g., "10", "12")
+            section: Optional section (e.g., "A", "B")
+            house: Optional house name (e.g., "Red", "Blue")
         """
         faces = self.detect_and_extract(image)
         
@@ -163,6 +184,15 @@ class FaceRecognitionSystem:
         # Sort by quality and keep only the best embeddings
         self.embeddings_db[name].sort(key=lambda x: x['quality_score'] * x['det_score'], reverse=True)
         self.embeddings_db[name] = self.embeddings_db[name][:self.max_embeddings_per_person]
+        
+        # Store user metadata if provided
+        if student_class or section or house:
+            self.user_metadata[name] = {
+                'student_class': student_class or '',
+                'section': section or '',
+                'house': house or ''
+            }
+            self.save_user_metadata()
         
         # Save to file
         self.save_embeddings()
@@ -435,17 +465,24 @@ class FaceRecognitionSystem:
         }
     
     def delete_person(self, name: str) -> bool:
-        """Delete all embeddings for a specific person"""
+        """Delete all embeddings and metadata for a specific person"""
+        deleted = False
         if name in self.embeddings_db:
             del self.embeddings_db[name]
             self.save_embeddings()
-            return True
-        return False
+            deleted = True
+        if name in self.user_metadata:
+            del self.user_metadata[name]
+            self.save_user_metadata()
+            deleted = True
+        return deleted
     
     def clear_all_data(self) -> bool:
-        """Clear all enrolled data"""
+        """Clear all enrolled data and metadata"""
         self.embeddings_db.clear()
+        self.user_metadata.clear()
         self.save_embeddings()
+        self.save_user_metadata()
         return True
     
     def _init_attendance_file(self):
@@ -535,4 +572,144 @@ class FaceRecognitionSystem:
             'today_names': self.get_today_attendance(),
             'total_days_recorded': len(total_days),
             'total_attendance_records': total_records
+        }
+    
+    def save_user_metadata(self):
+        """Save user metadata to JSON file"""
+        with open(self.user_metadata_file, 'w') as f:
+            json.dump(self.user_metadata, f)
+    
+    def load_user_metadata(self):
+        """Load user metadata from JSON file"""
+        if not self.user_metadata_file.exists():
+            return
+        
+        try:
+            with open(self.user_metadata_file, 'r') as f:
+                self.user_metadata = json.load(f)
+        except Exception as e:
+            print(f"Error loading user metadata: {e}")
+    
+    def get_person_metadata(self, name: str) -> Dict:
+        """Get metadata for a specific person"""
+        return self.user_metadata.get(name, {})
+    
+    def get_all_users_with_metadata(self) -> List[Dict]:
+        """Get all enrolled users with their metadata"""
+        users = []
+        for name in self.embeddings_db.keys():
+            user_data = {
+                'name': name,
+                'embedding_count': len(self.embeddings_db[name]),
+                **self.user_metadata.get(name, {
+                    'student_class': '',
+                    'section': '',
+                    'house': ''
+                })
+            }
+            users.append(user_data)
+        return users
+    
+    def get_attendance_for_date(self, target_date: str) -> List[str]:
+        """Get list of people who attended on a specific date"""
+        attendees = []
+        if self.attendance_file.exists():
+            try:
+                with open(self.attendance_file, 'r', newline='') as f:
+                    reader = csv.reader(f)
+                    next(reader, None)  # Skip header
+                    for row in reader:
+                        if len(row) >= 3 and row[0] == target_date:
+                            attendees.append(row[2])  # Name column
+            except Exception as e:
+                print(f"Error reading attendance for date: {e}")
+        return list(set(attendees))  # Return unique names
+    
+    def get_absentees_for_date(
+        self,
+        target_date: Optional[str] = None,
+        student_class: Optional[str] = None,
+        section: Optional[str] = None,
+        house: Optional[str] = None
+    ) -> Dict:
+        """
+        Get list of absentees for a specific date with optional filters.
+        
+        Args:
+            target_date: Date in YYYY-MM-DD format (defaults to today)
+            student_class: Filter by class
+            section: Filter by section
+            house: Filter by house
+            
+        Returns:
+            Dictionary with absentees list and statistics
+        """
+        # Default to today if no date provided
+        if target_date is None:
+            target_date = date.today().isoformat()
+        
+        # Get all enrolled users with metadata
+        all_users = self.get_all_users_with_metadata()
+        
+        # Get attendance for the target date
+        present_names = set(self.get_attendance_for_date(target_date))
+        
+        # Filter and find absentees
+        absentees = []
+        total_filtered = 0
+        total_present = 0
+        
+        for user in all_users:
+            # Apply filters
+            if student_class and user.get('student_class', '').lower() != student_class.lower():
+                continue
+            if section and user.get('section', '').lower() != section.lower():
+                continue
+            if house and user.get('house', '').lower() != house.lower():
+                continue
+            
+            total_filtered += 1
+            
+            if user['name'] in present_names:
+                total_present += 1
+            else:
+                absentees.append({
+                    'name': user['name'],
+                    'student_class': user.get('student_class', ''),
+                    'section': user.get('section', ''),
+                    'house': user.get('house', '')
+                })
+        
+        return {
+            'date': target_date,
+            'absentees': absentees,
+            'total_enrolled': len(all_users),
+            'total_filtered': total_filtered,
+            'total_present': total_present,
+            'total_absent': len(absentees),
+            'filters': {
+                'student_class': student_class,
+                'section': section,
+                'house': house
+            }
+        }
+    
+    def get_available_filters(self) -> Dict:
+        """Get available filter options from enrolled users metadata"""
+        classes = set()
+        sections = set()
+        houses = set()
+        
+        for name, metadata in self.user_metadata.items():
+            if metadata.get('student_class'):
+                classes.add(metadata['student_class'])
+            if metadata.get('section'):
+                sections.add(metadata['section'])
+            if metadata.get('house'):
+                houses.add(metadata['house'])
+        
+        return {
+            'classes': sorted(list(classes)),
+            'sections': sorted(list(sections)),
+            'houses': sorted(list(houses))
         }

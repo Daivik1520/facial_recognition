@@ -1,7 +1,7 @@
 """Enrollment endpoints."""
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -18,6 +18,9 @@ async def enroll_person(
     files: List[UploadFile] = File(...),
     use_augmentation: bool = Form(True),
     augmentation_preset: str = Form("balanced"),
+    student_class: Optional[str] = Form(None),
+    section: Optional[str] = Form(None),
+    house: Optional[str] = Form(None),
     face_system: FaceRecognitionSystem = Depends(get_face_system),
 ) -> dict[str, object]:
     """
@@ -28,6 +31,9 @@ async def enroll_person(
         files: Image files to enroll
         use_augmentation: Whether to use data augmentation (default: True)
         augmentation_preset: Augmentation preset - 'minimal', 'balanced', or 'aggressive' (default: 'balanced')
+        student_class: Optional class/grade (e.g., "10", "12")
+        section: Optional section (e.g., "A", "B")
+        house: Optional house name (e.g., "Red", "Blue")
     
     Returns:
         Enrollment result with statistics
@@ -58,7 +64,19 @@ async def enroll_person(
             result = face_system.enroll_multiple_with_augmentation(name, images)
         
         if not result["success"]:
-            raise HTTPException(status_code=400, detail="No faces detected in images")
+            raise HTTPException(status_code=422, detail={
+                "error": "No faces detected",
+                "images_processed": len(images)
+            })
+        
+        # Save user metadata if provided
+        if student_class or section or house:
+            face_system.user_metadata[name] = {
+                'student_class': student_class or '',
+                'section': section or '',
+                'house': house or ''
+            }
+            face_system.save_user_metadata()
         
         return {
             "message": f"Successfully enrolled {name} with augmentation",
@@ -71,24 +89,50 @@ async def enroll_person(
             "avg_quality": round(result["avg_quality"], 3),
             "augmentation_used": True,
             "augmentation_preset": augmentation_preset,
+            "student_class": student_class or '',
+            "section": section or '',
+            "house": house or '',
         }
     else:
         # Standard enrollment without augmentation
         if len(images) == 1:
-            success = face_system.enroll_person(name, images[0])
+            success = face_system.enroll_person(
+                name, images[0],
+                student_class=student_class,
+                section=section,
+                house=house
+            )
             if not success:
-                raise HTTPException(status_code=400, detail="No face detected in image")
+                raise HTTPException(status_code=422, detail={
+                    "error": "No face detected in image",
+                    "images_processed": 1
+                })
 
             return {
                 "message": f"Successfully enrolled {name}",
                 "total_enrolled": face_system.get_enrolled_count(),
                 "images_processed": 1,
                 "augmentation_used": False,
+                "student_class": student_class or '',
+                "section": section or '',
+                "house": house or '',
             }
 
         result = face_system.enroll_multiple_images(name, images)
         if not result["success"]:
-            raise HTTPException(status_code=400, detail="No faces detected in any images")
+            raise HTTPException(status_code=422, detail={
+                "error": "No faces detected in any images",
+                "images_processed": len(images)
+            })
+        
+        # Save user metadata for multiple images enrollment
+        if student_class or section or house:
+            face_system.user_metadata[name] = {
+                'student_class': student_class or '',
+                'section': section or '',
+                'house': house or ''
+            }
+            face_system.save_user_metadata()
 
         return {
             "message": f"Successfully enrolled {name} with {result['enrolled_count']} images",
@@ -98,6 +142,9 @@ async def enroll_person(
             "total_embeddings": result["total_embeddings"],
             "avg_quality": round(result["avg_quality"], 3),
             "augmentation_used": False,
+            "student_class": student_class or '',
+            "section": section or '',
+            "house": house or '',
         }
 
 

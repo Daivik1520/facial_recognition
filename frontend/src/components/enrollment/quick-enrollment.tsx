@@ -18,6 +18,9 @@ interface QuickEnrollmentProps {
 
 export function QuickEnrollment({ isOpen, onClose, onComplete, videoRef, canvasRef }: QuickEnrollmentProps) {
   const [name, setName] = useState('')
+  const [studentClass, setStudentClass] = useState('')
+  const [section, setSection] = useState('')
+  const [house, setHouse] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,13 +58,19 @@ export function QuickEnrollment({ isOpen, onClose, onComplete, videoRef, canvasR
       formData.append('use_augmentation', 'true')
       formData.append('augmentation_preset', 'balanced')
 
+      // Add metadata fields
+      if (studentClass) formData.append('student_class', studentClass)
+      if (section) formData.append('section', section)
+      if (house) formData.append('house', house)
+
       const response = await endpoints.enroll(formData)
       console.log('Quick enrollment successful:', response.data)
       onComplete(response.data)
       onClose()
-    } catch (error) {
-      console.error('Enrollment error:', error)
-      setError('Failed to enroll person. Please try again.')
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      const message = typeof detail === 'string' ? detail : (detail?.error || 'Failed to enroll person. Please try again.')
+      setError(message)
     } finally {
       setIsProcessing(false)
     }
@@ -85,7 +94,7 @@ export function QuickEnrollment({ isOpen, onClose, onComplete, videoRef, canvasR
             </Button>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="quick-name">Person&apos;s Name</Label>
@@ -96,6 +105,40 @@ export function QuickEnrollment({ isOpen, onClose, onComplete, videoRef, canvasR
               onChange={(e) => setName(e.target.value)}
               disabled={isProcessing}
             />
+          </div>
+
+          {/* Student Details */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="quick-class" className="text-xs">Class</Label>
+              <Input
+                id="quick-class"
+                placeholder="e.g. 10"
+                value={studentClass}
+                onChange={(e) => setStudentClass(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="quick-section" className="text-xs">Section</Label>
+              <Input
+                id="quick-section"
+                placeholder="e.g. A"
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="quick-house" className="text-xs">House</Label>
+              <Input
+                id="quick-house"
+                placeholder="e.g. Red"
+                value={house}
+                onChange={(e) => setHouse(e.target.value)}
+                disabled={isProcessing}
+              />
+            </div>
           </div>
 
           <div className="p-4 bg-blue-50 rounded-lg">
@@ -112,7 +155,7 @@ export function QuickEnrollment({ isOpen, onClose, onComplete, videoRef, canvasR
           )}
 
           <div className="flex space-x-2">
-            <Button 
+            <Button
               onClick={handleEnrollment}
               disabled={!name.trim() || isProcessing}
               className="flex-1"

@@ -2,33 +2,63 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Sidebar } from '@/components/layout/sidebar'
 import { useAppStore } from '@/store'
 import { endpoints } from '@/lib/api'
-import { BarChart3, TrendingUp, Users, Clock, Activity, Eye, Target, Zap, Calendar, Download, RefreshCw } from 'lucide-react'
+import axios from 'axios'
+import { BarChart3, TrendingUp, Users, Clock, Activity, Eye, Target, Zap, Calendar, Download, RefreshCw, UserX, Search, Filter } from 'lucide-react'
 
 export default function AnalyticsPage() {
-  const { 
-    systemStatus, 
-    attendanceStats, 
-    isLoading, 
-    setSystemStatus, 
-    setAttendanceStats, 
-    setLoading 
+  const {
+    systemStatus,
+    attendanceStats,
+    isLoading,
+    setSystemStatus,
+    setAttendanceStats,
+    setLoading
   } = useAppStore()
+
+  // Absentee Checker State
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [filterClass, setFilterClass] = useState('')
+  const [filterSection, setFilterSection] = useState('')
+  const [filterHouse, setFilterHouse] = useState('')
+  const [absenteeData, setAbsenteeData] = useState<any>(null)
+  const [isLoadingAbsentees, setIsLoadingAbsentees] = useState(false)
+
+  const fetchAbsentees = async () => {
+    try {
+      setIsLoadingAbsentees(true)
+      const params = new URLSearchParams()
+      if (selectedDate) params.append('date', selectedDate)
+      if (filterClass) params.append('student_class', filterClass)
+      if (filterSection) params.append('section', filterSection)
+      if (filterHouse) params.append('house', filterHouse)
+
+      const response = await axios.get(`http://localhost:8000/api/attendance/absentees?${params.toString()}`)
+      setAbsenteeData(response.data)
+    } catch (error) {
+      console.error('Failed to fetch absentees:', error)
+    } finally {
+      setIsLoadingAbsentees(false)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
         console.log('Analytics: Fetching data...')
-        
+
         const statusResponse = await endpoints.status()
         setSystemStatus(statusResponse.data)
-        
+
         const attendanceResponse = await endpoints.attendance()
         setAttendanceStats(attendanceResponse.data)
-        
+
         console.log('Analytics: Data fetch completed successfully')
       } catch (error) {
         console.error('Analytics: Failed to fetch data:', error)
@@ -42,7 +72,7 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
       <Sidebar />
-      
+
       <div className="flex-1 lg:ml-80">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
@@ -75,258 +105,166 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="px-6 py-8 space-y-8">
-          {/* Hero Section */}
-          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-8 text-white shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="space-y-4">
-                <h2 className="text-3xl font-bold">Advanced Analytics Dashboard</h2>
-                <p className="text-blue-100 text-lg max-w-2xl">
-                  Monitor real-time performance, track attendance patterns, and analyze recognition accuracy with comprehensive data insights.
-                </p>
-                <div className="flex items-center space-x-6 pt-4">
-                  <div className="flex items-center space-x-2">
-                    <Eye className="h-5 w-5" />
-                    <span className="font-medium">Real-time Monitoring</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Target className="h-5 w-5" />
-                    <span className="font-medium">Precision Analytics</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-5 w-5" />
-                    <span className="font-medium">Instant Insights</span>
-                  </div>
-                </div>
-              </div>
-              <div className="hidden lg:block">
-                <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
-                  <BarChart3 className="h-16 w-16 text-white/80" />
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Key Metrics */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 opacity-5 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <CardContent className="relative p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg">
-                    <Users className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>+12%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-3xl font-bold text-slate-900">
-                    {systemStatus?.enrolled_count || 0}
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700">Total Enrolled</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">Registered individuals in system</p>
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-500 opacity-5 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <CardContent className="relative p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 shadow-lg">
-                    <Activity className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>+8%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-3xl font-bold text-slate-900">
-                    {attendanceStats?.today_attendance || 0}
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700">Today's Attendance</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">People present today</p>
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 opacity-5 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <CardContent className="relative p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg">
-                    <BarChart3 className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>+24%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-3xl font-bold text-slate-900">
-                    {attendanceStats?.total_attendance_records || 0}
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700">Total Records</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">All-time attendance records</p>
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 opacity-5 group-hover:opacity-10 transition-opacity duration-300"></div>
-              <CardContent className="relative p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 shadow-lg">
-                    <Calendar className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>+5%</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-3xl font-bold text-slate-900">
-                    {attendanceStats?.total_days_recorded || 0}
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700">Active Days</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">Days with recorded activity</p>
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid gap-8 lg:grid-cols-2">
-            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-bold text-slate-900">Attendance Trends</CardTitle>
-                    <CardDescription>Daily attendance patterns and insights</CardDescription>
-                  </div>
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <BarChart3 className="h-5 w-5 text-blue-600" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <BarChart3 className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Interactive Charts Coming Soon</h3>
-                    <p className="text-slate-600">Advanced visualization with real-time data</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-bold text-slate-900">Recognition Performance</CardTitle>
-                    <CardDescription>Face recognition accuracy and speed metrics</CardDescription>
-                  </div>
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-emerald-600" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <TrendingUp className="h-8 w-8 text-emerald-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Performance Metrics</h3>
-                    <p className="text-slate-600">Real-time accuracy and speed analysis</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* System Information */}
+          {/* Absentee Checker */}
           <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">System Information</CardTitle>
-                  <CardDescription>Current system configuration and status</CardDescription>
+                  <CardTitle className="text-xl font-bold text-slate-900 flex items-center">
+                    <UserX className="h-6 w-6 mr-2 text-red-500" />
+                    Absentee Checker
+                  </CardTitle>
+                  <CardDescription>Check who is absent on any day, filter by class, section, or house</CardDescription>
                 </div>
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Eye className="h-5 w-5 text-green-600" />
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Search className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
-                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center">
-                    <Target className="h-5 w-5 mr-2 text-blue-600" />
-                    AI Model
-                  </h4>
-                  <p className="text-slate-600 font-medium">{systemStatus?.model || 'InsightFace ArcFace'}</p>
-                  <p className="text-xs text-slate-500 mt-1">Advanced face recognition engine</p>
+            <CardContent className="space-y-6">
+              {/* Filters Row */}
+              <div className="grid gap-4 md:grid-cols-5">
+                <div className="space-y-2">
+                  <Label htmlFor="date-picker" className="text-sm font-medium">Date</Label>
+                  <Input
+                    id="date-picker"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full"
+                  />
                 </div>
-                <div className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center">
-                    <Zap className="h-5 w-5 mr-2 text-emerald-600" />
-                    System Status
-                  </h4>
-                  <p className="text-green-600 font-medium flex items-center">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                    Operational
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">All systems running normally</p>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-class" className="text-sm font-medium">Class</Label>
+                  <Input
+                    id="filter-class"
+                    placeholder="e.g. 10"
+                    value={filterClass}
+                    onChange={(e) => setFilterClass(e.target.value)}
+                  />
                 </div>
-                <div className="p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center">
-                    <Users className="h-5 w-5 mr-2 text-purple-600" />
-                    Enrolled Individuals
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {systemStatus?.enrolled_names?.slice(0, 5).map((name: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                        {name}
-                      </span>
-                    ))}
-                    {systemStatus?.enrolled_names && systemStatus.enrolled_names.length > 5 && (
-                      <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-sm font-medium">
-                        +{systemStatus.enrolled_names.length - 5} more
-                      </span>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-section" className="text-sm font-medium">Section</Label>
+                  <Input
+                    id="filter-section"
+                    placeholder="e.g. A"
+                    value={filterSection}
+                    onChange={(e) => setFilterSection(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-house" className="text-sm font-medium">House</Label>
+                  <Input
+                    id="filter-house"
+                    placeholder="e.g. Red"
+                    value={filterHouse}
+                    onChange={(e) => setFilterHouse(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={fetchAbsentees}
+                    disabled={isLoadingAbsentees}
+                    className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                  >
+                    {isLoadingAbsentees ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4 mr-2" />
                     )}
-                  </div>
-                </div>
-                <div className="p-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-200">
-                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center">
-                    <Activity className="h-5 w-5 mr-2 text-orange-600" />
-                    Today's Attendees
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {attendanceStats?.today_names?.slice(0, 5).map((name: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                        {name}
-                      </span>
-                    ))}
-                    {attendanceStats?.today_names && attendanceStats.today_names.length > 5 && (
-                      <span className="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-sm font-medium">
-                        +{attendanceStats.today_names.length - 5} more
-                      </span>
-                    )}
-                  </div>
+                    Check Absentees
+                  </Button>
                 </div>
               </div>
+
+              {/* Results */}
+              {absenteeData && (
+                <div className="space-y-4">
+                  {/* Stats Row */}
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-700">{absenteeData.total_enrolled}</div>
+                      <div className="text-sm text-blue-600">Total Enrolled</div>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                      <div className="text-2xl font-bold text-purple-700">{absenteeData.total_filtered}</div>
+                      <div className="text-sm text-purple-600">Filtered</div>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                      <div className="text-2xl font-bold text-green-700">{absenteeData.total_present}</div>
+                      <div className="text-sm text-green-600">Present</div>
+                    </div>
+                    <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+                      <div className="text-2xl font-bold text-red-700">{absenteeData.total_absent}</div>
+                      <div className="text-sm text-red-600">Absent</div>
+                    </div>
+                  </div>
+
+                  {/* Absentees Table */}
+                  {absenteeData.absentees.length > 0 ? (
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      <table className="w-full">
+                        <thead className="bg-gradient-to-r from-slate-100 to-slate-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">#</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Name</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Class</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Section</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">House</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {absenteeData.absentees.map((person: any, index: number) => (
+                            <tr key={index} className="hover:bg-red-50/50 transition-colors">
+                              <td className="px-4 py-3 text-sm text-slate-500">{index + 1}</td>
+                              <td className="px-4 py-3">
+                                <span className="font-medium text-slate-900">{person.name}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                  {person.student_class || '-'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                  {person.section || '-'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium">
+                                  {person.house || '-'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center bg-green-50 rounded-xl border border-green-200">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-green-900 mb-2">Everyone is Present!</h3>
+                      <p className="text-green-700">No absentees found for the selected date and filters.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!absenteeData && (
+                <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Filter className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Select Date and Filters</h3>
+                  <p className="text-slate-500">Choose a date and optionally filter by class, section, or house, then click "Check Absentees"</p>
+                </div>
+              )}
             </CardContent>
           </Card>
+
         </div>
       </div>
     </div>

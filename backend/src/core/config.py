@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
     # Detection Settings
     detection_model: str = "antelopev2"
-    det_size_width: int = 640
-    det_size_height: int = 640
+    det_size_width: int = 480
+    det_size_height: int = 480
     det_thresh: float = 0.5
 
     # Recognition Settings
